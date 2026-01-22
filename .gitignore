@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Environment
+.env
+
+# Chroma DB (vector store)
+chroma_db/
+*.sqlite
+*.sqlite-journal
+
+# VS Code settings
+.vscode/
+
+# Mac / Linux system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# Virtual environment
+venv/

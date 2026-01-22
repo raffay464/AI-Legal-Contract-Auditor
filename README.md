@@ -1,59 +1,82 @@
 # AI Legal Contract Auditor
 
-An AI-powered system that analyzes complex legal contracts and identifies key contractual clauses using Retrieval-Augmented Generation (RAG). The system extracts specific clauses, summarizes them in plain English, assesses legal risk, and provides precise citations.
+An AI-powered system that analyzes complex legal contracts and identifies key contractual clauses using **Retrieval-Augmented Generation (RAG)**. The system extracts specific clauses, summarizes them in plain English, assesses legal risk, and provides precise citations.
+
+---
 
 ## Problem Statement
 
-Legal contracts are lengthy, complex, and difficult to review manually. This project builds a prototype AI Legal Contract Auditor capable of understanding legal context and extracting critical clauses while minimizing hallucinations.
+Legal contracts are lengthy, complex, and difficult to review manually. This project builds a prototype **AI Legal Contract Auditor** capable of understanding legal context and extracting critical clauses while minimizing hallucinations. The system is designed to support legal professionals by automating clause extraction, summarization, and risk assessment.
+
+---
 
 ## Scope of Clause Analysis
 
 The system focuses on identifying and analyzing the following clauses from legal agreements:
 
-- IP Ownership Assignment  
-- Price Restrictions  
-- Non-compete, Exclusivity, and No-solicit of Customers  
-- Termination for Convenience  
-- Governing Law  
+- **IP Ownership Assignment**  
+- **Price Restrictions**  
+- **Non-compete, Exclusivity, and No-solicit of Customers**  
+- **Termination for Convenience**  
+- **Governing Law**  
+
+---
 
 ## Dataset
 
 This project uses a subset of the **CUAD (Contract Understanding Atticus Dataset)**:  
-https://www.atticusprojectai.org/cuad
+[https://www.atticusprojectai.org/cuad](https://www.atticusprojectai.org/cuad)  
 
-Selected agreements are used to ensure coverage of the targeted clause types.
+- Selected agreements cover the targeted clause types.  
+- Contracts are primarily in **PDF format**, requiring robust preprocessing due to inconsistent formatting, multi-page clauses, and dense legal language.
+
+---
 
 ## System Overview
 
-The pipeline consists of the following stages:
+### 1. Document Ingestion
+- PDF/Text parsing using **PyPDF2** and **pdfplumber**  
+- Removal of headers, footers, and noisy artifacts  
+- Preservation of section headers for accurate citation  
 
-1. **Document Ingestion**
-   - PDF/Text parsing
-   - Removal of headers, footers, and noisy artifacts
-   - Preservation of section headers for citation
+### 2. Chunking & Embeddings
+- **Semantic Chunking with Context Preservation**  
+  - RecursiveCharacterTextSplitter with:
+    - Chunk size = 1000 characters  
+    - Overlap = 200 characters (ensures clauses spanning multiple chunks are fully captured)  
+    - Hierarchical separators: paragraphs → lines → sentences → words → characters  
+  - Preserves clause integrity and legal meaning  
+- Metadata: document source, page number, section header, chunk index  
+- Vectorization using **MiniLM-L6-v2 embeddings**  
+- Storage in **ChromaDB** for local, persistent, and fast retrieval  
 
-2. **Chunking & Embeddings**
-   - Parent-child chunking strategy for long legal documents
-   - Vectorization using embedding models
-   - Storage in a vector database
 
-3. **Retrieval-Augmented Generation (RAG)**
-   - Clause-specific retrieval
-   - Context-aware question answering
-   - Long-context handling via hierarchical retrieval and reranking
+### 3. Retrieval-Augmented Generation (RAG)
+- Clause-specific retrieval for targeted queries  
+- Context-aware question answering  
+- Long-context handling via hierarchical retrieval, **reranking**, and optional LLM-based scoring  
 
-4. **Clause Analysis**
-   - Plain English summarization
-   - Risk scoring (Low / Medium / High)
-   - Exact citation (page number or section header)
+### 4. Clause Analysis
+- Summarization in plain English  
+- Risk scoring (Low / Medium / High) based on vendor- or customer-friendliness  
+- Citation of exact location (page number or section header)  
+- Optional **redline suggestions** are generated automatically for High-Risk clauses using LLM-based rephrasing  
+
+---
 
 ## Tech Stack
 
 - **Language**: Python  
-- **LLM**:   
-- **Embeddings**:  
-- **Vector Database**:   
-- **Framework**:   
+- **LLM**: Llama 3.2 (via Ollama, 3B parameters)  
+  - Local deployment, data privacy, zero operational cost, strong legal comprehension  
+  - Inference latency: ~5–30 seconds per query  
+- **Embeddings**: MiniLM-L6-v2  
+- **Vector Database**: ChromaDB  
+- **Frameworks & Libraries**: LangChain, Ollama SDK, PyPDF2, pdfplumber  
+
+> ⚡ Note: The codebase was developed using Python with the support of GPT and Gemini for guidance and best practices. All core logic is original and implemented by the team.
+
+---
 
 ## Risk Scoring Methodology
 
@@ -63,17 +86,27 @@ Risk is evaluated based on how vendor-friendly or customer-friendly the clause l
 - **Medium Risk**: Mildly one-sided obligations  
 - **High Risk**: Strongly unfavorable or restrictive terms  
 
+---
+
 ## Hallucination Mitigation Strategy
 
-- Strict Retrieval-Augmented Generation (RAG)
-- Answers grounded only in retrieved context
-- Citation enforcement for every output
-- Fallback to “Not Found in Contract” when data is missing
+To ensure reliability and safety in a real-world legal environment:
+
+- Responses are grounded **only in retrieved document chunks**  
+- Explicit instruction to respond with "**I don’t know**" if the clause or answer is absent  
+- **Citation enforcement**: Every output includes page number, section header, and content snippet  
+- Multi-layer retrieval quality controls:
+  - Vector similarity search  
+  - Maximal Marginal Relevance (MMR) for source diversity  
+  - Optional LLM-based reranking  
+- Human-in-the-loop for high-risk clauses and medium-confidence outputs  
+- All analyses logged for traceability and auditability  
+- Tested on CUAD contracts with **low hallucination rates**  
+
+---
 
 ## License
 
 This project is a prototype for research and educational purposes.
 
----
-
-**Note**: This tool is designed to assist with contract review but should not replace professional legal counsel. Always consult with qualified legal professionals for important contractual decisions.
+> **Note**: This tool is designed to assist with contract review but **does not replace professional legal counsel**. Always consult qualified legal professionals for important contractual decisions.
