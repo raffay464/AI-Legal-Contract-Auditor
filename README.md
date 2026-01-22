@@ -104,6 +104,14 @@ To ensure reliability and safety in a real-world legal environment:
 - Tested on CUAD contracts with **low hallucination rates**  
 
 ---
+
+## License
+
+This project is a prototype for research and educational purposes.
+
+> **Note**: This tool is designed to assist with contract review but **does not replace professional legal counsel**. Always consult qualified legal professionals for important contractual decisions.
+
+
 ## Dependencies
 
 The project uses Python packages listed in `requirements.txt` for installation.  
@@ -116,8 +124,4 @@ The project uses Python packages listed in `requirements.txt` for installation.
 ```bash
 # Install with pip using the constraints file
 pip install -r requirements.txt -c constraints.txt
-## License
 
-This project is a prototype for research and educational purposes.
-
-> **Note**: This tool is designed to assist with contract review but **does not replace professional legal counsel**. Always consult qualified legal professionals for important contractual decisions.
