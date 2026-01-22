@@ -104,7 +104,18 @@ To ensure reliability and safety in a real-world legal environment:
 - Tested on CUAD contracts with **low hallucination rates**  
 
 ---
+## Dependencies
 
+The project uses Python packages listed in `requirements.txt` for installation.  
+
+- **Core dependencies** include LangChain, ChromaDB, PyPDF, OpenAI SDK, and Sentence Transformers.  
+- A separate `constraints.txt` is provided to **pin specific versions** and resolve dependency conflicts between LangChain modules, OpenAI SDK, and LangChain community packages.  
+
+**Installation Example:**
+
+```bash
+# Install with pip using the constraints file
+pip install -r requirements.txt -c constraints.txt
 ## License
 
 This project is a prototype for research and educational purposes.
