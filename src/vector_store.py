@@ -5,7 +5,7 @@ from langchain_community.vectorstores import Chroma
 import chromadb
 from chromadb.config import Settings
 
-
+## Vector Store Manager for Legal Document Analysis
 class VectorStoreManager:
     
     def __init__(self, persist_directory: str, embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
@@ -45,11 +45,13 @@ class VectorStoreManager:
             raise ValueError("Vector store not initialized. Load or create a vector store first.")
         return self.vector_store.similarity_search(query, k=k)
     
+    ## Similarity Search with Scores
     def similarity_search_with_score(self, query: str, k: int = 5) -> List[tuple]:
         if self.vector_store is None:
             raise ValueError("Vector store not initialized. Load or create a vector store first.")
         return self.vector_store.similarity_search_with_score(query, k=k)
     
+    ## Max Marginal Relevance Search
     def mmr_search(self, query: str, k: int = 5, fetch_k: int = 20) -> List[Document]:
         if self.vector_store is None:
             raise ValueError("Vector store not initialized. Load or create a vector store first.")

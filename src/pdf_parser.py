@@ -4,7 +4,7 @@ from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
-
+## Class for parsing legal PDF documents
 class LegalPDFParser:
     
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
@@ -16,7 +16,8 @@ class LegalPDFParser:
             length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
-    
+        
+    ## Extract text from PDF and return full text with metadata
     def extract_text_from_pdf(self, pdf_path: str) -> Tuple[str, Dict]:
         reader = PdfReader(pdf_path)
         full_text = ""
@@ -26,6 +27,7 @@ class LegalPDFParser:
             "page_texts": {}
         }
         
+        ## Extract text page by page
         for page_num, page in enumerate(reader.pages, start=1):
             page_text = page.extract_text()
             page_text = self._clean_text(page_text)
@@ -34,12 +36,14 @@ class LegalPDFParser:
         
         return full_text, metadata
     
+    ## Clean extracted text
     def _clean_text(self, text: str) -> str:
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]', '', text)
         text = text.strip()
         return text
     
+    ## Extract section headers from text
     def _extract_section_headers(self, text: str) -> List[str]:
         patterns = [
             r'^[A-Z\s]{3,}$',
@@ -57,6 +61,7 @@ class LegalPDFParser:
                     break
         return headers
     
+    ## Create semantic chunks with context
     def semantic_chunk_with_context(self, text: str, metadata: Dict) -> List[Document]:
         base_chunks = self.text_splitter.split_text(text)
         
@@ -77,6 +82,7 @@ class LegalPDFParser:
         
         return documents
     
+    ## Find page number for a given chunk
     def _find_page_number(self, chunk: str, metadata: Dict) -> int:
         page_match = re.search(r'--- Page (\d+) ---', chunk)
         if page_match:
@@ -88,6 +94,7 @@ class LegalPDFParser:
         
         return 1
     
+    ## Find nearest section header for a given chunk
     def _find_nearest_section(self, chunk: str, full_text: str) -> str:
         chunk_start = full_text.find(chunk[:50])
         if chunk_start == -1:
@@ -103,6 +110,7 @@ class LegalPDFParser:
         
         return "Unknown Section"
     
+    ## Process a PDF and return semantic chunks
     def process_pdf(self, pdf_path: str) -> List[Document]:
         full_text, metadata = self.extract_text_from_pdf(pdf_path)
         documents = self.semantic_chunk_with_context(full_text, metadata)

@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import List, Dict
 import os
 
-
+## Class for generating PDF reports of legal contract analysis
 class LegalContractPDFReport:
     
     def __init__(self, output_path: str):
@@ -26,6 +26,7 @@ class LegalContractPDFReport:
         self._setup_custom_styles()
         self.story = []
     
+    ## Setup custom paragraph styles
     def _setup_custom_styles(self):
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
@@ -99,6 +100,7 @@ class LegalContractPDFReport:
             spaceAfter=5
         ))
     
+    ## Add title page to the report
     def add_title_page(self, contract_name: str, analysis_date: str = None):
         if analysis_date is None:
             analysis_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
@@ -126,6 +128,7 @@ class LegalContractPDFReport:
         
         self.story.append(PageBreak())
     
+    ## Add executive summary section
     def add_executive_summary(self, results: List[Dict]):
         self.story.append(Paragraph("EXECUTIVE SUMMARY", self.styles['SectionHeader']))
         self.story.append(Spacer(1, 0.2*inch))
@@ -163,6 +166,7 @@ class LegalContractPDFReport:
         self.story.append(summary_table)
         self.story.append(Spacer(1, 0.3*inch))
         
+        ## Add warning if high risk clauses found
         if high_risk > 0:
             warning = Paragraph(
                 f"⚠️ <b>WARNING:</b> {high_risk} HIGH RISK clause(s) identified. Immediate review recommended.",
@@ -173,6 +177,7 @@ class LegalContractPDFReport:
         
         self.story.append(PageBreak())
     
+    ## Add detailed clause analysis section
     def add_clause_analysis(self, result: Dict, include_redline: bool = False):
         clause_type = result['clause_type']
         
@@ -239,6 +244,7 @@ class LegalContractPDFReport:
         
         self.story.append(Spacer(1, 0.3*inch))
     
+    ## Add interactive Q&A section
     def add_qa_section(self, qa_results: List[Dict]):
         self.story.append(PageBreak())
         self.story.append(Paragraph("INTERACTIVE Q&A RESULTS", self.styles['SectionHeader']))
@@ -257,6 +263,7 @@ class LegalContractPDFReport:
             self.story.append(confidence)
             self.story.append(Spacer(1, 0.2*inch))
     
+    ## Generate the PDF report
     def generate(self):
         self.doc.build(self.story)
         print(f"\n✅ PDF Report generated: {self.output_path}")

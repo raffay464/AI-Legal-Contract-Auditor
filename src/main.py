@@ -8,7 +8,7 @@ from src.rag_pipeline import RAGPipeline
 from src.clause_analyzer import ClauseAnalyzer
 from src.config import CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDING_MODEL, CHROMA_DB_PATH, OLLAMA_MODEL
 
-
+## Main class for legal contract auditing
 class LegalContractAuditor:
     
     def __init__(self, persist_directory: str = CHROMA_DB_PATH):
@@ -19,12 +19,14 @@ class LegalContractAuditor:
         )
         self.rag_pipeline = None
         self.clause_analyzer = None
-    
+        
+    ## Process and index contracts
     def process_contracts(self, pdf_paths: List[str], rebuild_index: bool = False):
         if rebuild_index or not os.path.exists(CHROMA_DB_PATH):
             print("Processing contracts and building vector database...")
             all_documents = []
             
+            ## Process each PDF
             for pdf_path in pdf_paths:
                 print(f"Processing: {pdf_path}")
                 documents = self.pdf_parser.process_pdf(pdf_path)
@@ -39,10 +41,12 @@ class LegalContractAuditor:
             print("Loading existing vector store...")
             self.vector_store_manager.load_vector_store()
             print("Vector store loaded successfully!")
-        
+            
+        ## Initialize RAG pipeline and clause analyzer
         self.rag_pipeline = RAGPipeline(self.vector_store_manager, llm_model=None)
         self.clause_analyzer = ClauseAnalyzer(self.rag_pipeline, llm_model=None)
     
+    ## Analyze all target clauses in the contract
     def analyze_contract(self, include_redline: bool = False) -> List[dict]:
         if self.clause_analyzer is None:
             raise ValueError("Process contracts first using process_contracts()")
@@ -87,6 +91,7 @@ class LegalContractAuditor:
         
         return results
     
+    ## Query the contract with a specific question
     def query_contract(self, question: str) -> dict:
         if self.rag_pipeline is None:
             raise ValueError("Process contracts first using process_contracts()")
@@ -108,6 +113,7 @@ class LegalContractAuditor:
 def main():
     import argparse
     
+    ## Argument parser for command-line interface
     parser = argparse.ArgumentParser(description="AI Legal Contract Auditor")
     parser.add_argument("--contracts", nargs="+", required=True, help="Path(s) to contract PDF files")
     parser.add_argument("--rebuild", action="store_true", help="Rebuild vector database")
@@ -125,6 +131,7 @@ def main():
     
     auditor.process_contracts(args.contracts, rebuild_index=args.rebuild)
     
+    ## Analyze contract or answer query
     if args.query:
         auditor.query_contract(args.query)
     else:

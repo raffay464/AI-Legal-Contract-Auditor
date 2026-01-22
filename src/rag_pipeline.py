@@ -5,7 +5,7 @@ from langchain_core.prompts import PromptTemplate
 from src.vector_store import VectorStoreManager
 from src.config import OLLAMA_MODEL, OLLAMA_BASE_URL
 
-
+## RAG Pipeline for Legal Document Analysis
 class RAGPipeline:
     
     def __init__(self, vector_store_manager: VectorStoreManager, llm_model: str = None):
@@ -22,10 +22,12 @@ class RAGPipeline:
         
         return documents
     
+    ## Retrieval with Reranking
     def retrieve_with_reranking(self, query: str, initial_k: int = 10, final_k: int = 5) -> List[Document]:
         initial_docs = self.vector_store_manager.similarity_search_with_score(query, k=initial_k)
         
         rerank_prompt = """You are a legal document relevance scorer. 
+
 
 Query: {query}
 
@@ -106,7 +108,7 @@ Answer:"""
             "sources": sources,
             "confidence": confidence
         }
-    
+    ## Format context with metadata
     def _format_context(self, documents: List[Document]) -> str:
         context_parts = []
         for idx, doc in enumerate(documents, 1):

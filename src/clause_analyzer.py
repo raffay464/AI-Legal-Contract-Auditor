@@ -3,7 +3,7 @@ from langchain_community.llms import Ollama
 from src.rag_pipeline import RAGPipeline
 from src.config import TARGET_CLAUSES, RISK_CRITERIA, OLLAMA_MODEL, OLLAMA_BASE_URL
 
-
+##  Class for analyzing contract clauses
 class ClauseAnalyzer:
     
     def __init__(self, rag_pipeline: RAGPipeline, llm_model: str = None):
@@ -15,7 +15,8 @@ class ClauseAnalyzer:
             base_url=OLLAMA_BASE_URL,
             temperature=0
         )
-
+        
+##   Extract clause from contract
     def extract_clause(self, clause_type: str) -> Dict:
         query = f"""
         Locate and extract the full contract language related to {clause_type}.
@@ -39,7 +40,7 @@ class ClauseAnalyzer:
             "no relevant clause",
             "not present in the contract"
         ]
-
+        ## Check if clause is found
         if not answer_text or any(phrase in answer_lower for phrase in not_found_phrases):
             return {
                 "clause_type": clause_type,
@@ -60,7 +61,8 @@ class ClauseAnalyzer:
             "risk_explanation": None,
             "citations": result.get("sources", [])
         }
-
+        
+    ## Summarize clause in plain English
     def summarize_clause(self, clause_content: str, clause_type: str) -> str:
         summary_prompt = f"""
         You are a legal expert. Summarize the following {clause_type} clause in plain English
@@ -79,7 +81,8 @@ class ClauseAnalyzer:
 
         response = self.llm.invoke(summary_prompt)
         return response.strip()
-
+    
+    ## Assess risk level of clause
     def assess_risk(self, clause_content: str, clause_type: str) -> Dict[str, str]:
         risk_keywords = RISK_CRITERIA.get(clause_type, {})
         high_risk_keywords = risk_keywords.get("high_risk_keywords", [])
@@ -129,7 +132,8 @@ class ClauseAnalyzer:
             "risk_rating": risk_level,
             "risk_explanation": explanation
         }
-
+        
+    ## Analyze all target clauses in the contract
     def analyze_all_clauses(self) -> List[Dict]:
         results = []
 
@@ -155,7 +159,8 @@ class ClauseAnalyzer:
             results.append(clause_data)
 
         return results
-
+    
+    ## Generate redline suggestion for high-risk clauses
     def generate_redline_suggestion(
         self,
         clause_content: str,

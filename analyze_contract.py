@@ -19,7 +19,7 @@ from pathlib import Path
 from src.main import LegalContractAuditor
 from src.pdf_report_generator import LegalContractPDFReport
 
-
+## Main function to parse arguments and run analysis
 def main():
     parser = argparse.ArgumentParser(
         description='Analyze legal contracts and generate comprehensive PDF reports'
