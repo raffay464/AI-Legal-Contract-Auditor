@@ -10,10 +10,12 @@ USE_OLLAMA = True
 OLLAMA_MODEL = "llama3.2"
 OLLAMA_BASE_URL = "http://localhost:11434"
 
+USE_OLLAMA_EMBEDDINGS = True
+OLLAMA_EMBEDDING_MODEL = "nomic-embed-text"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 CHROMA_DB_PATH = "./chroma_db"
-## List of target clauses to analyze
+
 TARGET_CLAUSES = [
     "IP Ownership Assignment",
     "Price Restrictions",
@@ -21,7 +23,7 @@ TARGET_CLAUSES = [
     "Termination for Convenience",
     "Governing Law"
 ]
-## Risk criteria for clause assessment
+
 RISK_CRITERIA = {
     "IP Ownership Assignment": {
         "high_risk_keywords": ["assigns all rights", "exclusive ownership", "perpetual", "irrevocable", "waives all rights"],

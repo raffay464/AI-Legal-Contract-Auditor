@@ -5,7 +5,7 @@ from langchain_core.prompts import PromptTemplate
 from src.vector_store import VectorStoreManager
 from src.config import OLLAMA_MODEL, OLLAMA_BASE_URL
 
-## RAG Pipeline for Legal Document Analysis
+
 class RAGPipeline:
     
     def __init__(self, vector_store_manager: VectorStoreManager, llm_model: str = None):
@@ -22,12 +22,10 @@ class RAGPipeline:
         
         return documents
     
-    ## Retrieval with Reranking
     def retrieve_with_reranking(self, query: str, initial_k: int = 10, final_k: int = 5) -> List[Document]:
         initial_docs = self.vector_store_manager.similarity_search_with_score(query, k=initial_k)
         
         rerank_prompt = """You are a legal document relevance scorer. 
-
 
 Query: {query}
 
@@ -57,9 +55,9 @@ Respond with ONLY a number between 0 and 10."""
     
     def answer_query(self, query: str, use_reranking: bool = False) -> Dict:
         if use_reranking:
-            relevant_docs = self.retrieve_with_reranking(query, initial_k=10, final_k=5)
+            relevant_docs = self.retrieve_with_reranking(query, initial_k=20, final_k=8)
         else:
-            relevant_docs = self.retrieve_relevant_context(query, k=5)
+            relevant_docs = self.retrieve_relevant_context(query, k=8)
         
         if not relevant_docs:
             return {
@@ -70,7 +68,7 @@ Respond with ONLY a number between 0 and 10."""
         
         context = self._format_context(relevant_docs)
         
-        qa_prompt = """You are a legal contract analysis AI assistant. Answer the question based ONLY on the provided context from the contract.
+        qa_prompt = """You are a legal contract analysis AI assistant. Answer the question based on the provided context from the contract.
 
 Context from contract:
 {context}
@@ -78,10 +76,12 @@ Context from contract:
 Question: {question}
 
 Instructions:
-1. If the context contains the answer, provide a clear and precise response
-2. If the context does NOT contain enough information to answer, respond with: "I don't know. The provided contract sections do not contain sufficient information to answer this question."
-3. Cite specific sections or page numbers when possible
-4. Be concise but thorough
+1. Carefully examine ALL the context provided above
+2. If you find ANY relevant information about the topic, extract and present it clearly
+3. Look for related terms, synonyms, or indirect references to the topic
+4. ONLY respond with "I don't know" if there is absolutely NO relevant information in the context
+5. If you find partial information, provide what you found and note what's missing
+6. Quote directly from the contract when possible
 
 Answer:"""
         
@@ -108,7 +108,7 @@ Answer:"""
             "sources": sources,
             "confidence": confidence
         }
-    ## Format context with metadata
+    
     def _format_context(self, documents: List[Document]) -> str:
         context_parts = []
         for idx, doc in enumerate(documents, 1):

@@ -10,14 +10,39 @@ class ClauseAnalyzer:
         self.rag_pipeline = rag_pipeline
         if llm_model is None:
             llm_model = OLLAMA_MODEL
-        self.llm = Ollama(model=llm_model, base_url=OLLAMA_BASE_URL, temperature=0)
+        self.llm = Ollama(
+            model=llm_model, 
+            base_url=OLLAMA_BASE_URL, 
+            temperature=0
+        )
     
     def extract_clause(self, clause_type: str) -> Dict:
-        query = f"Find and extract the complete {clause_type} clause from the contract."
+        # Single optimized query - no reranking for speed
+        query = f"Extract the complete text of the '{clause_type}' clause from this contract."
         
-        result = self.rag_pipeline.answer_query(query, use_reranking=True)
+        result = self.rag_pipeline.answer_query(query, use_reranking=False)
         
-        if "I don't know" in result["answer"]:
+        # More lenient detection - check if we got meaningful content
+        answer_lower = result["answer"].lower()
+        has_content = len(result["answer"]) > 50 and result["sources"]
+        
+        # Detect AI refusal or not found responses
+        is_negative = any(phrase in answer_lower for phrase in [
+            "i don't know", 
+            "not found", 
+            "does not contain",
+            "no information",
+            "cannot find",
+            "i can't assist",
+            "i cannot",
+            "feel free to ask",
+            "different topic",
+            "cannot create",
+            "without permission",
+            "did not provide sufficient"
+        ])
+        
+        if not has_content or is_negative:
             return {
                 "clause_type": clause_type,
                 "found": False,
@@ -39,19 +64,13 @@ class ClauseAnalyzer:
         }
     
     def summarize_clause(self, clause_content: str, clause_type: str) -> str:
-        summary_prompt = """You are a legal expert. Summarize the following {clause_type} clause in plain English that a non-lawyer can understand.
+        summary_prompt = """You are a legal analyst. Provide a 2-sentence summary of this contract clause:
 
-Clause Content:
 {content}
-
-Provide a clear, concise summary (2-3 sentences) focusing on:
-- What the clause requires
-- Who it affects
-- Key obligations or restrictions
 
 Summary:"""
         
-        prompt_text = summary_prompt.format(clause_type=clause_type, content=clause_content)
+        prompt_text = summary_prompt.format(clause_type=clause_type, content=clause_content[:2000])
         response = self.llm.invoke(prompt_text)
         
         return response.strip()
@@ -65,25 +84,12 @@ Summary:"""
         high_risk_count = sum(1 for keyword in high_risk_keywords if keyword.lower() in content_lower)
         low_risk_count = sum(1 for keyword in low_risk_keywords if keyword.lower() in content_lower)
         
-        risk_prompt = """You are a legal risk assessment expert. Analyze the following {clause_type} clause and determine if it is vendor-friendly or customer-friendly.
+        risk_prompt = """Risk level (HIGH/MEDIUM/LOW):
 
-Clause Content:
 {content}
 
-Assess the risk level as:
-- HIGH: Very unfavorable terms, one-sided obligations, severe restrictions, or lack of protections
-- MEDIUM: Somewhat unbalanced terms, moderate restrictions, or unclear provisions
-- LOW: Balanced terms, reasonable restrictions, mutual obligations, or favorable protections
-
-Consider:
-1. Balance of obligations between parties
-2. Severity of restrictions or penalties
-3. Flexibility and termination rights
-4. Protection of interests
-
-Respond in this exact format:
-RISK_LEVEL: [HIGH/MEDIUM/LOW]
-EXPLANATION: [2-3 sentences explaining why]"""
+RISK_LEVEL: 
+EXPLANATION: """
         
         prompt_text = risk_prompt.format(clause_type=clause_type, content=clause_content)
         response = self.llm.invoke(prompt_text)
@@ -119,13 +125,17 @@ EXPLANATION: [2-3 sentences explaining why]"""
             
             clause_data = self.extract_clause(clause_type)
             
+            # Only do expensive LLM calls if clause was found
             if clause_data["found"]:
+                print(f"  ✓ Found - summarizing and assessing risk...")
                 summary = self.summarize_clause(clause_data["content"], clause_type)
                 risk_assessment = self.assess_risk(clause_data["content"], clause_type)
                 
                 clause_data["summary"] = summary
                 clause_data["risk_rating"] = risk_assessment["risk_rating"]
                 clause_data["risk_explanation"] = risk_assessment["risk_explanation"]
+            else:
+                print(f"  ✗ Not found - skipping analysis")
             
             results.append(clause_data)
         

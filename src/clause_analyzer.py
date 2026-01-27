@@ -3,45 +3,41 @@ from langchain_community.llms import Ollama
 from src.rag_pipeline import RAGPipeline
 from src.config import TARGET_CLAUSES, RISK_CRITERIA, OLLAMA_MODEL, OLLAMA_BASE_URL
 
-##  Class for analyzing contract clauses
+
 class ClauseAnalyzer:
     
     def __init__(self, rag_pipeline: RAGPipeline, llm_model: str = None):
         self.rag_pipeline = rag_pipeline
         if llm_model is None:
             llm_model = OLLAMA_MODEL
-        self.llm = Ollama(
-            model=llm_model,
-            base_url=OLLAMA_BASE_URL,
-            temperature=0
-        )
-        
-##   Extract clause from contract
+        self.llm = Ollama(model=llm_model, base_url=OLLAMA_BASE_URL, temperature=0)
+    
     def extract_clause(self, clause_type: str) -> Dict:
-        query = f"""
-        Locate and extract the full contract language related to {clause_type}.
-        If present, return the exact clause text.
-        """
-
-        result = self.rag_pipeline.answer_query(
-            query,
-            use_reranking=True
-        )
-
-        answer_text = result.get("answer", "").strip()
-        answer_lower = answer_text.lower()
-
-        not_found_phrases = [
-            "not found",
-            "does not contain",
-            "no mention",
-            "not explicitly stated",
-            "cannot find",
-            "no relevant clause",
-            "not present in the contract"
+        # Try multiple query variations to improve retrieval
+        queries = [
+            f"Find and extract the complete {clause_type} clause from the contract.",
+            f"What does the contract say about {clause_type}?",
+            f"Locate any provisions related to {clause_type} in this agreement."
         ]
-        ## Check if clause is found
-        if not answer_text or any(phrase in answer_lower for phrase in not_found_phrases):
+        
+        best_result = None
+        best_confidence = "none"
+        
+        for query in queries:
+            result = self.rag_pipeline.answer_query(query, use_reranking=True)
+            
+            # Check if this result is better
+            if result["confidence"] == "high":
+                best_result = result
+                break
+            elif result["confidence"] == "medium" and best_confidence == "none":
+                best_result = result
+                best_confidence = "medium"
+            elif best_result is None:
+                best_result = result
+        
+        # Check if clause was found
+        if best_result is None or "I don't know" in best_result["answer"] or not best_result["sources"]:
             return {
                 "clause_type": clause_type,
                 "found": False,
@@ -51,146 +47,133 @@ class ClauseAnalyzer:
                 "risk_explanation": "Cannot assess risk as clause was not found.",
                 "citations": []
             }
-
+        
         return {
             "clause_type": clause_type,
             "found": True,
-            "content": answer_text,
+            "content": best_result["answer"],
             "summary": None,
             "risk_rating": None,
             "risk_explanation": None,
-            "citations": result.get("sources", [])
+            "citations": best_result["sources"]
         }
-        
-    ## Summarize clause in plain English
+    
     def summarize_clause(self, clause_content: str, clause_type: str) -> str:
-        summary_prompt = f"""
-        You are a legal expert. Summarize the following {clause_type} clause in plain English
-        that a non-lawyer can understand.
+        summary_prompt = """You are a legal expert. Summarize the following {clause_type} clause in plain English that a non-lawyer can understand.
 
-        Clause Content:
-        {clause_content}
+Clause Content:
+{content}
 
-        Provide a clear, concise summary (2–3 sentences) focusing on:
-        - What the clause requires
-        - Who it affects
-        - Key obligations or restrictions
+Provide a clear, concise summary (2-3 sentences) focusing on:
+- What the clause requires
+- Who it affects
+- Key obligations or restrictions
 
-        Summary:
-        """
-
-        response = self.llm.invoke(summary_prompt)
+Summary:"""
+        
+        prompt_text = summary_prompt.format(clause_type=clause_type, content=clause_content)
+        response = self.llm.invoke(prompt_text)
+        
         return response.strip()
     
-    ## Assess risk level of clause
     def assess_risk(self, clause_content: str, clause_type: str) -> Dict[str, str]:
         risk_keywords = RISK_CRITERIA.get(clause_type, {})
         high_risk_keywords = risk_keywords.get("high_risk_keywords", [])
         low_risk_keywords = risk_keywords.get("low_risk_keywords", [])
-
+        
         content_lower = clause_content.lower()
-        high_risk_count = sum(1 for kw in high_risk_keywords if kw.lower() in content_lower)
-        low_risk_count = sum(1 for kw in low_risk_keywords if kw.lower() in content_lower)
+        high_risk_count = sum(1 for keyword in high_risk_keywords if keyword.lower() in content_lower)
+        low_risk_count = sum(1 for keyword in low_risk_keywords if keyword.lower() in content_lower)
+        
+        risk_prompt = """You are a legal risk assessment expert. Analyze the following {clause_type} clause and determine if it is vendor-friendly or customer-friendly.
 
-        risk_prompt = f"""
-        You are a legal risk assessment expert.
+Clause Content:
+{content}
 
-        Analyze the following {clause_type} clause and determine its risk level.
+Assess the risk level as:
+- HIGH: Very unfavorable terms, one-sided obligations, severe restrictions, or lack of protections
+- MEDIUM: Somewhat unbalanced terms, moderate restrictions, or unclear provisions
+- LOW: Balanced terms, reasonable restrictions, mutual obligations, or favorable protections
 
-        Clause Content:
-        {clause_content}
+Consider:
+1. Balance of obligations between parties
+2. Severity of restrictions or penalties
+3. Flexibility and termination rights
+4. Protection of interests
 
-        Risk Levels:
-        - HIGH: Very one-sided or restrictive
-        - MEDIUM: Some imbalance or ambiguity
-        - LOW: Balanced and reasonable
-
-        Respond in this format:
-        RISK_LEVEL: HIGH / MEDIUM / LOW
-        EXPLANATION: 2–3 sentence justification
-        """
-
-        response = self.llm.invoke(risk_prompt)
+Respond in this exact format:
+RISK_LEVEL: [HIGH/MEDIUM/LOW]
+EXPLANATION: [2-3 sentences explaining why]"""
+        
+        prompt_text = risk_prompt.format(clause_type=clause_type, content=clause_content)
+        response = self.llm.invoke(prompt_text)
+        
         response_text = response.strip()
-
+        
         risk_level = "MEDIUM"
-        explanation = "Risk level could not be clearly determined."
-
-        for line in response_text.splitlines():
-            if line.startswith("RISK_LEVEL:"):
-                risk_level = line.replace("RISK_LEVEL:", "").strip()
-            elif line.startswith("EXPLANATION:"):
-                explanation = line.replace("EXPLANATION:", "").strip()
-
-        # Keyword-based adjustment (safe fallback)
+        explanation = "Unable to determine risk level."
+        
+        if "RISK_LEVEL:" in response_text:
+            lines = response_text.split("\n")
+            for line in lines:
+                if line.startswith("RISK_LEVEL:"):
+                    risk_level = line.replace("RISK_LEVEL:", "").strip()
+                elif line.startswith("EXPLANATION:"):
+                    explanation = line.replace("EXPLANATION:", "").strip()
+        
         if high_risk_count > low_risk_count and risk_level == "MEDIUM":
             risk_level = "HIGH"
         elif low_risk_count > high_risk_count and risk_level == "MEDIUM":
             risk_level = "LOW"
-
+        
         return {
             "risk_rating": risk_level,
             "risk_explanation": explanation
         }
-        
-    ## Analyze all target clauses in the contract
+    
     def analyze_all_clauses(self) -> List[Dict]:
         results = []
-
+        
         for clause_type in TARGET_CLAUSES:
             print(f"\nAnalyzing: {clause_type}...")
-
+            
             clause_data = self.extract_clause(clause_type)
-
+            
             if clause_data["found"]:
-                summary = self.summarize_clause(
-                    clause_data["content"],
-                    clause_type
-                )
-                risk = self.assess_risk(
-                    clause_data["content"],
-                    clause_type
-                )
-
+                summary = self.summarize_clause(clause_data["content"], clause_type)
+                risk_assessment = self.assess_risk(clause_data["content"], clause_type)
+                
                 clause_data["summary"] = summary
-                clause_data["risk_rating"] = risk["risk_rating"]
-                clause_data["risk_explanation"] = risk["risk_explanation"]
-
+                clause_data["risk_rating"] = risk_assessment["risk_rating"]
+                clause_data["risk_explanation"] = risk_assessment["risk_explanation"]
+            
             results.append(clause_data)
-
+        
         return results
     
-    ## Generate redline suggestion for high-risk clauses
-    def generate_redline_suggestion(
-        self,
-        clause_content: str,
-        clause_type: str,
-        risk_rating: str
-    ) -> Optional[str]:
-
+    def generate_redline_suggestion(self, clause_content: str, clause_type: str, risk_rating: str) -> Optional[str]:
         if risk_rating != "HIGH":
             return None
+        
+        redline_prompt = """You are a legal contract negotiation expert. The following {clause_type} clause has been identified as HIGH RISK.
 
-        redline_prompt = f"""
-        You are a legal contract negotiation expert.
+Original Clause:
+{content}
 
-        The following {clause_type} clause is HIGH RISK.
+Suggest a more balanced alternative version of this clause that:
+1. Maintains the core intent
+2. Provides better protection for both parties
+3. Reduces one-sided obligations
+4. Adds reasonable limitations or safeguards
 
-        Original Clause:
-        {clause_content}
+Provide your suggestion in this format:
+SUGGESTED REVISION:
+[Your revised clause text]
 
-        Suggest a more balanced revision that:
-        - Keeps original intent
-        - Reduces one-sided risk
-        - Adds reasonable safeguards
-
-        Format:
-        SUGGESTED REVISION:
-        [Revised clause]
-
-        RATIONALE:
-        [Brief explanation]
-        """
-
-        response = self.llm.invoke(redline_prompt)
+RATIONALE:
+[Brief explanation of changes]"""
+        
+        prompt_text = redline_prompt.format(clause_type=clause_type, content=clause_content)
+        response = self.llm.invoke(prompt_text)
+        
         return response.strip()

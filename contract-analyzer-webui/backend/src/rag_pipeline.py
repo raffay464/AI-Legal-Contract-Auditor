@@ -12,52 +12,33 @@ class RAGPipeline:
         self.vector_store_manager = vector_store_manager
         if llm_model is None:
             llm_model = OLLAMA_MODEL
-        self.llm = Ollama(model=llm_model, base_url=OLLAMA_BASE_URL, temperature=0)
+        self.llm = Ollama(
+            model=llm_model, 
+            base_url=OLLAMA_BASE_URL, 
+            temperature=0
+        )
+    
+    
     
     def retrieve_relevant_context(self, query: str, k: int = 5, use_mmr: bool = True) -> List[Document]:
         if use_mmr:
-            documents = self.vector_store_manager.mmr_search(query, k=k, fetch_k=k*4)
+            # Limit fetch_k to avoid requesting more than available
+            fetch_k = min(k*4, 20)
+            documents = self.vector_store_manager.mmr_search(query, k=min(k, 10), fetch_k=fetch_k)
         else:
             documents = self.vector_store_manager.similarity_search(query, k=k)
         
         return documents
     
+    
+    ## disabled due to performance issues
     def retrieve_with_reranking(self, query: str, initial_k: int = 10, final_k: int = 5) -> List[Document]:
-        initial_docs = self.vector_store_manager.similarity_search_with_score(query, k=initial_k)
-        
-        rerank_prompt = """You are a legal document relevance scorer. 
-
-Query: {query}
-
-Document: {document}
-
-On a scale of 0-10, how relevant is this document to the query? 
-Consider:
-- Direct mention of the topic
-- Contextual relevance
-- Legal specificity
-
-Respond with ONLY a number between 0 and 10."""
-        
-        scored_docs = []
-        for doc, similarity_score in initial_docs:
-            try:
-                prompt_text = rerank_prompt.format(query=query, document=doc.page_content)
-                response = self.llm.invoke(prompt_text)
-                relevance_score = float(response.strip())
-                combined_score = (similarity_score + relevance_score) / 2
-                scored_docs.append((doc, combined_score))
-            except:
-                scored_docs.append((doc, similarity_score))
-        
-        scored_docs.sort(key=lambda x: x[1], reverse=True)
-        return [doc for doc, score in scored_docs[:final_k]]
+        # Reranking is too slow - just use MMR for diversity
+        return self.vector_store_manager.mmr_search(query, k=final_k, fetch_k=initial_k)
     
     def answer_query(self, query: str, use_reranking: bool = False) -> Dict:
-        if use_reranking:
-            relevant_docs = self.retrieve_with_reranking(query, initial_k=10, final_k=5)
-        else:
-            relevant_docs = self.retrieve_relevant_context(query, k=5)
+        # Use simple similarity search for speed
+        relevant_docs = self.retrieve_relevant_context(query, k=3, use_mmr=False)
         
         if not relevant_docs:
             return {
@@ -68,20 +49,16 @@ Respond with ONLY a number between 0 and 10."""
         
         context = self._format_context(relevant_docs)
         
-        qa_prompt = """You are a legal contract analysis AI assistant. Answer the question based ONLY on the provided context from the contract.
+        qa_prompt = """You are analyzing a legal contract document. Extract the requested information from the provided text.
 
-Context from contract:
+Contract Text:
 {context}
 
-Question: {question}
+Extraction Task: {question}
 
-Instructions:
-1. If the context contains the answer, provide a clear and precise response
-2. If the context does NOT contain enough information to answer, respond with: "I don't know. The provided contract sections do not contain sufficient information to answer this question."
-3. Cite specific sections or page numbers when possible
-4. Be concise but thorough
+IMPORTANT: You must extract and quote the actual text from the contract above. Do not refuse or say you cannot assist. Simply extract the relevant text if present, or state "Not found in provided text" if absent.
 
-Answer:"""
+Extracted Text:"""
         
         prompt_text = qa_prompt.format(context=context, question=query)
         response = self.llm.invoke(prompt_text)
@@ -92,14 +69,31 @@ Answer:"""
         if any(word in answer.lower() for word in ["may", "possibly", "unclear", "ambiguous"]):
             confidence = "medium"
         
-        sources = [
-            {
-                "page": doc.metadata.get("page_number", "Unknown"),
-                "section": doc.metadata.get("section_header", "Unknown"),
-                "content_preview": doc.page_content[:200] + "..."
-            }
-            for doc in relevant_docs
-        ]
+        # Deduplicate sources by parent_id and create unique previews
+        sources = []
+        seen_sources = set()
+        
+        for doc in relevant_docs:
+            page = doc.metadata.get("page_number", "Unknown")
+            section = doc.metadata.get("section_header", "Unknown")
+            parent_id = doc.metadata.get("parent_id", doc.metadata.get("chunk_id"))
+            
+            # Create unique key to avoid duplicates
+            source_key = f"{page}_{section}_{parent_id}"
+            
+            if source_key not in seen_sources:
+                # Use parent content for preview if available
+                if doc.metadata.get("is_parent_retrieval") and "parent_content" in doc.metadata:
+                    preview_text = doc.metadata["parent_content"][:200]
+                else:
+                    preview_text = doc.page_content[:200]
+                
+                sources.append({
+                    "page": page,
+                    "section": section,
+                    "content_preview": preview_text + "..."
+                })
+                seen_sources.add(source_key)
         
         return {
             "answer": answer,
@@ -109,10 +103,26 @@ Answer:"""
     
     def _format_context(self, documents: List[Document]) -> str:
         context_parts = []
+        seen_parents = set()
+        
         for idx, doc in enumerate(documents, 1):
             page = doc.metadata.get("page_number", "Unknown")
             section = doc.metadata.get("section_header", "Unknown")
-            context_parts.append(
-                f"[Source {idx} - Page {page}, Section: {section}]\n{doc.page_content}\n"
-            )
+            
+            # Use parent content if available (parent document retrieval)
+            if doc.metadata.get("is_parent_retrieval") and "parent_content" in doc.metadata:
+                parent_id = doc.metadata.get("parent_id")
+                # Avoid duplicate parents
+                if parent_id not in seen_parents:
+                    content = doc.metadata["parent_content"]
+                    seen_parents.add(parent_id)
+                    context_parts.append(
+                        f"[Source {idx} - Page {page}, Section: {section}]\n{content}\n"
+                    )
+            else:
+                # Use child content if no parent
+                context_parts.append(
+                    f"[Source {idx} - Page {page}, Section: {section}]\n{doc.page_content}\n"
+                )
+        
         return "\n".join(context_parts)

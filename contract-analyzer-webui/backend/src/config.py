@@ -3,13 +3,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
+CHUNK_SIZE = 1500
+CHUNK_OVERLAP = 300
 
 USE_OLLAMA = True
 OLLAMA_MODEL = "llama3.2"
 OLLAMA_BASE_URL = "http://localhost:11434"
 
+USE_OLLAMA_EMBEDDINGS = True
+OLLAMA_EMBEDDING_MODEL = "nomic-embed-text"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 CHROMA_DB_PATH = "./chroma_db"

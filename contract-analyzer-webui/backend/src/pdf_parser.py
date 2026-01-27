@@ -10,9 +10,19 @@ class LegalPDFParser:
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
+        
+        # Parent chunks (large, for context)
+        self.parent_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size * 2,  # 3000 chars for parents
             chunk_overlap=chunk_overlap,
+            length_function=len,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
+        
+        # Child chunks (small, for retrieval)
+        self.child_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size // 2,  # 750 chars for children
+            chunk_overlap=chunk_overlap // 2,
             length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
@@ -58,22 +68,34 @@ class LegalPDFParser:
         return headers
     
     def semantic_chunk_with_context(self, text: str, metadata: Dict) -> List[Document]:
-        base_chunks = self.text_splitter.split_text(text)
+        # Create parent chunks (large)
+        parent_chunks = self.parent_splitter.split_text(text)
         
         documents = []
-        for idx, chunk in enumerate(base_chunks):
-            page_num = self._find_page_number(chunk, metadata)
-            section_header = self._find_nearest_section(chunk, text)
+        parent_id = 0
+        
+        for parent_chunk in parent_chunks:
+            # Create child chunks from each parent
+            child_chunks = self.child_splitter.split_text(parent_chunk)
             
-            doc_metadata = {
-                "source": metadata["source"],
-                "chunk_id": idx,
-                "page_number": page_num,
-                "section_header": section_header,
-                "total_chunks": len(base_chunks)
-            }
+            for child_idx, child_chunk in enumerate(child_chunks):
+                page_num = self._find_page_number(child_chunk, metadata)
+                section_header = self._find_nearest_section(child_chunk, text)
+                
+                doc_metadata = {
+                    "source": metadata["source"],
+                    "chunk_id": f"{parent_id}_{child_idx}",
+                    "parent_id": parent_id,
+                    "page_number": page_num,
+                    "section_header": section_header,
+                    "parent_content": parent_chunk,  # Store full parent for context
+                    "is_parent_retrieval": True
+                }
+                
+                # Store child chunk for retrieval, but include parent in metadata
+                documents.append(Document(page_content=child_chunk, metadata=doc_metadata))
             
-            documents.append(Document(page_content=chunk, metadata=doc_metadata))
+            parent_id += 1
         
         return documents
     
