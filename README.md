@@ -42,19 +42,19 @@ This project uses a subset of the **CUAD (Contract Understanding Atticus Dataset
 ### 2. Chunking & Embeddings
 - **Semantic Chunking with Context Preservation**  
   - RecursiveCharacterTextSplitter with:
-    - Chunk size = 1000 characters  
-    - Overlap = 200 characters (ensures clauses spanning multiple chunks are fully captured)  
+    - Chunk size = 1500 characters  
+    - Overlap = 300 characters (ensures clauses spanning multiple chunks are fully captured)  
     - Hierarchical separators: paragraphs → lines → sentences → words → characters  
   - Preserves clause integrity and legal meaning  
 - Metadata: document source, page number, section header, chunk index  
-- Vectorization using **MiniLM-L6-v2 embeddings**  
+- Vectorization using **Llama Embedding model ==> Nomic embed Text**  
 - Storage in **ChromaDB** for local, persistent, and fast retrieval  
 
 
 ### 3. Retrieval-Augmented Generation (RAG)
 - Clause-specific retrieval for targeted queries  
 - Context-aware question answering  
-- Long-context handling via hierarchical retrieval, **reranking**, and optional LLM-based scoring  
+- Long-context handling via hierarchical retrieval, parent-child document retrieval and similarity score.  
 
 ### 4. Clause Analysis
 - Summarization in plain English  
@@ -68,9 +68,8 @@ This project uses a subset of the **CUAD (Contract Understanding Atticus Dataset
 
 - **Language**: Python  
 - **LLM**: Llama 3.2 (via Ollama, 3B parameters)  
-  - Local deployment, data privacy, zero operational cost, strong legal comprehension  
-  - Inference latency: ~5–30 seconds per query  
-- **Embeddings**: MiniLM-L6-v2  
+  - Local deployment, data privacy, zero operational cost, strong legal comprehension    
+- **Embeddings**: Llama Embedding model ==> Nomic embed Text
 - **Vector Database**: ChromaDB  
 - **Frameworks & Libraries**: LangChain, Ollama SDK, PyPDF2, pdfplumber  
 
@@ -96,8 +95,9 @@ To ensure reliability and safety in a real-world legal environment:
 - Explicit instruction to respond with "**I don’t know**" if the clause or answer is absent  
 - **Citation enforcement**: Every output includes page number, section header, and content snippet  
 - Multi-layer retrieval quality controls:
-  - Vector similarity search  
-  - Maximal Marginal Relevance (MMR) for source diversity  
+  - Vector similarity search
+  - parent-child document retrieval
+  - chunk overlap
   - Optional LLM-based reranking  
 - Human-in-the-loop for high-risk clauses and medium-confidence outputs  
 - All analyses logged for traceability and auditability  
