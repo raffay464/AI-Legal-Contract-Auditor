@@ -1,0 +1,62 @@
+{
+  "filename": "DataCallTechnologies_20060918_SB-2A_EX-10.9_944510_EX-10.9_Content License Agreement.pdf",
+  "analysis_date": "2026-01-28T00:47:24.124371",
+  "results": [
+    {
+      "clause_type": "IP Ownership Assignment",
+      "found": false,
+      "content": null,
+      "summary": "Clause not found in the contract.",
+      "risk_rating": "N/A",
+      "risk_explanation": "Cannot assess risk as clause was not found.",
+      "citations": []
+    },
+    {
+      "clause_type": "Price Restrictions",
+      "found": false,
+      "content": null,
+      "summary": "Clause not found in the contract.",
+      "risk_rating": "N/A",
+      "risk_explanation": "Cannot assess risk as clause was not found.",
+      "citations": []
+    },
+    {
+      "clause_type": "Non-compete, Exclusivity, No-solicit of Customers",
+      "found": false,
+      "content": null,
+      "summary": "Clause not found in the contract.",
+      "risk_rating": "N/A",
+      "risk_explanation": "Cannot assess risk as clause was not found.",
+      "citations": []
+    },
+    {
+      "clause_type": "Termination for Convenience",
+      "found": true,
+      "content": "The 'Termination for Convenience' clause is not explicitly mentioned in the provided contract text. However, I can provide information on clauses related to termination and modification.\n\nClause 6 states that this Contract may not be modified or terminated except in writing, and no claimed modification, termination or waiver shall be binding unless also signed by an authorized representative of Playboy. This implies that there is a requirement for written agreement for any modifications or terminations, but it does not explicitly state the circumstances under which termination can occur.\n\nIf you're looking for information on termination clauses, I can provide general guidance or help with extracting other types of contract provisions.",
+      "summary": "Here is a 2-sentence summary of the relevant clause:\n\nClause 6 states that modifications and terminations must be in writing and signed by an authorized representative of Playboy to be binding. However, it does not explicitly outline the circumstances under which termination can occur, leaving room for interpretation regarding \"Termination for Convenience\".",
+      "risk_rating": "LOW",
+      "risk_explanation": "The clause in question does not explicitly state the circumstances under which termination can occur, but it does imply that any modification or termination must be in writing and signed by an authorized representative of Playboy. This lack of clarity on the specific conditions for termination means that the risk level is low, as it suggests that termination may require more formalities than usual, rather than providing a clear indication of when termination can occur without written agreement.",
+      "citations": [
+        {
+          "page": 1,
+          "section": "Unknown Section",
+          "content_preview": ". 5. This Contract, when attached to a purchase order, shall consist of the entire agreement between the parties and shall supersede any conflicting or contrary terms and conditions of any purchase or..."
+        },
+        {
+          "page": 1,
+          "section": "Unknown Section",
+          "content_preview": "--- Page 1 ---\nExhibit 8 SUPPLIER/SUBCONTRACTOR CONTRACT 1. By execution of this Supplier/Subcontractor Contract (“Contract”), _______________ (“Supplier”) agrees and acknowledges that: (i) all images..."
+        }
+      ]
+    },
+    {
+      "clause_type": "Governing Law",
+      "found": false,
+      "content": null,
+      "summary": "Clause not found in the contract.",
+      "risk_rating": "N/A",
+      "risk_explanation": "Cannot assess risk as clause was not found.",
+      "citations": []
+    }
+  ]
+}

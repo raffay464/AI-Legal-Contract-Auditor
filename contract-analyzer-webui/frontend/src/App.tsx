@@ -47,6 +47,11 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AnalyzeResponse | null>(null);
+  
+  const [question, setQuestion] = useState("");
+  const [qaAnswer, setQaAnswer] = useState<string | null>(null);
+  const [qaBusy, setQaBusy] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -119,6 +124,35 @@ export default function App() {
     setFile(f);
     setData(null);
     setError(null);
+  }
+
+  async function askQuestion() {
+    if (!question.trim()) return;
+    setQaBusy(true);
+    setQaError(null);
+    setQaAnswer(null);
+
+    try {
+      const url = new URL(apiBase.replace(/\/$/, "") + "/qa");
+      url.searchParams.set("question", question);
+
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "X-API-Key": apiKey },
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = json?.detail || json?.message || `Request failed (${res.status})`;
+        throw new Error(msg);
+      }
+
+      setQaAnswer(json.answer || "No answer received");
+    } catch (e: any) {
+      setQaError(e?.message ?? "Something went wrong");
+    } finally {
+      setQaBusy(false);
+    }
   }
 
   return (
@@ -236,6 +270,41 @@ export default function App() {
           </div>
 
           <div className="md:col-span-7 space-y-6">
+            {data && (
+              <Card>
+                <CardHeader>
+                  <div className="font-semibold">Ask Questions</div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input 
+                      value={question} 
+                      onChange={(e) => setQuestion(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && askQuestion()}
+                      placeholder="Ask a question about this contract..."
+                      disabled={qaBusy}
+                    />
+                    <Button onClick={askQuestion} disabled={qaBusy || !question.trim()}>
+                      {qaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ask"}
+                    </Button>
+                  </div>
+                  
+                  {qaError && (
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-100">
+                      {qaError}
+                    </div>
+                  )}
+                  
+                  {qaAnswer && (
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-xs font-semibold text-white/60 mb-2">Answer:</div>
+                      <div className="text-sm text-white/90 whitespace-pre-wrap">{qaAnswer}</div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            
             <Card>
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">

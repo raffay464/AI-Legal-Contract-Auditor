@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-01-28T00:49:51.247128",
+    "question": "Ownership",
+    "answer": "The extracted text related to ownership is:\n\n\"(i) all images and/or trademarks, including, but not limited to PLAYBOY, (the “Playboy Properties”) applied at the request of _______________ (“Purchaser”) to merchandise covered by this Contract are owned by Playboy Enterprises International, Inc. (“Playboy”), and when used upon merchandise means that such merchandise is sponsored, approved, recommended or sold by Playboy or its licensees;\"",
+    "confidence": "high",
+    "sources": [
+      {
+        "page": 2,
+        "section": "Unknown Section",
+        "content_preview": "--- Page 2 ---..."
+      },
+      {
+        "page": 2,
+        "section": "Unknown Section",
+        "content_preview": "--- Page 1 ---\nExhibit 8 SUPPLIER/SUBCONTRACTOR CONTRACT 1. By execution of this Supplier/Subcontractor Contract (“Contract”), _______________ (“Supplier”) agrees and acknowledges that: (i) all images..."
+      }
+    ]
+  }
+]
